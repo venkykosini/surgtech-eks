@@ -5,8 +5,6 @@ env:
 
 phases:
   install:
-    runtime-versions:
-      docker: 20
     commands:
       - yum install -y gettext
       - curl -sSL -o kubectl https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl
