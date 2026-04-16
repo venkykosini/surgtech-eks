@@ -1,0 +1,100 @@
+#!/bin/bash
+set -euxo pipefail
+
+dnf update -y
+dnf install -y git docker jq unzip gettext java-21-amazon-corretto-headless wget
+
+systemctl enable --now docker
+
+wget -O /etc/yum.repos.d/jenkins.repo https://pkg.jenkins.io/redhat-stable/jenkins.repo
+rpm --import https://pkg.jenkins.io/redhat-stable/jenkins.io-2023.key
+dnf install -y jenkins
+
+usermod -aG docker jenkins
+
+curl -fsSL -o /usr/local/bin/kubectl https://dl.k8s.io/release/${kubectl_version}/bin/linux/amd64/kubectl
+chmod +x /usr/local/bin/kubectl
+
+TOKEN=$(curl -sX PUT "http://169.254.169.254/latest/api/token" -H "X-aws-ec2-metadata-token-ttl-seconds: 21600")
+PUBLIC_IP=$(curl -sH "X-aws-ec2-metadata-token: $TOKEN" http://169.254.169.254/latest/meta-data/public-ipv4)
+
+mkdir -p /var/lib/jenkins/casc_configs /var/lib/jenkins/init.groovy.d /etc/systemd/system/jenkins.service.d
+mkdir -p /var/lib/jenkins/plugins
+
+cat > /etc/systemd/system/jenkins.service.d/override.conf <<'EOF'
+[Service]
+Environment="JAVA_OPTS=-Djenkins.install.runSetupWizard=false"
+Environment="CASC_JENKINS_CONFIG=/var/lib/jenkins/casc_configs/jenkins.yaml"
+EOF
+
+cat > /var/lib/jenkins/casc_configs/jenkins.yaml <<EOF
+jenkins:
+  systemMessage: "Jenkins for surgtech-eks"
+  numExecutors: 2
+  mode: NORMAL
+  securityRealm:
+    local:
+      allowsSignup: false
+      users:
+        - id: "${jenkins_admin_user}"
+          password: "${jenkins_admin_pass}"
+  authorizationStrategy:
+    loggedInUsersCanDoAnything:
+      allowAnonymousRead: false
+unclassified:
+  location:
+    url: "http://${PUBLIC_IP}:8080/"
+EOF
+
+cat > /var/lib/jenkins/init.groovy.d/create-pipeline-job.groovy <<EOF
+import hudson.plugins.git.BranchSpec
+import hudson.plugins.git.GitSCM
+import hudson.plugins.git.UserRemoteConfig
+import jenkins.model.Jenkins
+import org.jenkinsci.plugins.workflow.cps.CpsScmFlowDefinition
+import org.jenkinsci.plugins.workflow.job.WorkflowJob
+
+def jenkins = Jenkins.get()
+def jobName = "${jenkins_job_name}"
+def job = jenkins.getItem(jobName)
+if (job == null) {
+  job = jenkins.createProject(WorkflowJob, jobName)
+}
+
+def remoteConfig = new UserRemoteConfig("${github_repo_url}", null, null, null)
+def scm = new GitSCM([remoteConfig], [new BranchSpec("*/${github_branch}")], false, [], null, null, [])
+def definition = new CpsScmFlowDefinition(scm, "Jenkinsfile")
+definition.setLightweight(true)
+
+job.setDefinition(definition)
+job.setDescription("Build and deploy surgtech-eks from GitHub pushes.")
+job.addTrigger(new com.cloudbees.jenkins.GitHubPushTrigger())
+job.save()
+jenkins.save()
+EOF
+
+cat > /var/cache/jenkins/plugins.txt <<'EOF'
+configuration-as-code
+credentials-binding
+git
+github
+job-dsl
+pipeline-stage-view
+workflow-aggregator
+EOF
+
+PLUGIN_MANAGER_URL=$(curl -fsSL https://api.github.com/repos/jenkinsci/plugin-installation-manager-tool/releases/latest | jq -r '.assets[] | select(.name | endswith(".jar")) | .browser_download_url' | head -n 1)
+curl -fsSL -o /opt/jenkins-plugin-manager.jar "$PLUGIN_MANAGER_URL"
+java -jar /opt/jenkins-plugin-manager.jar --war /usr/share/java/jenkins.war --plugin-file /var/cache/jenkins/plugins.txt --plugin-download-directory /var/lib/jenkins/plugins
+
+chown -R jenkins:jenkins /var/lib/jenkins
+
+systemctl daemon-reload
+systemctl enable --now jenkins
+
+cat > /etc/profile.d/jenkins-ci.sh <<EOF
+export AWS_REGION=${aws_region}
+export EKS_CLUSTER_NAME=${cluster_name}
+export FRONTEND_REPOSITORY_URI=${frontend_repository}
+export BACKEND_REPOSITORY_URI=${backend_repository}
+EOF

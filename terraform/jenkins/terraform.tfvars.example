@@ -1,0 +1,10 @@
+aws_region = "ap-south-1"
+instance_type = "t3.small"
+jenkins_admin_username = "admin"
+
+# For better security, replace 0.0.0.0/0 with your own IP/CIDR.
+jenkins_ingress_cidrs = ["0.0.0.0/0"]
+
+github_owner  = "venkykosini"
+github_repo   = "surgtech-eks"
+github_branch = "main"

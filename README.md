@@ -14,6 +14,7 @@ Low-cost Amazon EKS starter project with:
 - `backend/` Node.js API
 - `k8s/` Kubernetes manifests and templates
 - `terraform/` infrastructure as code
+- `terraform/jenkins/` Jenkins EC2 stack
 - `cicd/` build and deploy helpers
 - `docs/` setup notes
 
@@ -80,6 +81,15 @@ cd terraform
 3. CodeBuild pushes images to ECR
 4. CodeBuild renders `k8s/all.yml` with the new image tags
 5. CodeBuild deploys the rendered manifest to EKS
+
+## Jenkins Alternative
+
+This repo also supports a Jenkins-based flow on a small EC2 instance:
+
+1. Provision `terraform/jenkins`
+2. Open the Jenkins UI
+3. Use the generated pipeline job backed by `Jenkinsfile`
+4. Add the GitHub webhook to the Jenkins webhook URL
 
 ## Kubernetes Files Included
 
