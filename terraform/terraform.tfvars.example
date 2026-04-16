@@ -1,0 +1,15 @@
+aws_region              = "ap-south-1"
+project_name            = "surgtech-eks"
+environment             = "dev"
+github_owner            = "venkykosini"
+github_repo             = "surgtech-eks"
+github_branch           = "main"
+codestar_connection_arn = "arn:aws:codeconnections:ap-south-1:123456789012:connection/replace-me"
+enable_cicd             = false
+
+cluster_version     = "1.30"
+node_instance_types = ["t3.small"]
+node_capacity_type  = "SPOT"
+desired_size        = 1
+min_size            = 1
+max_size            = 2

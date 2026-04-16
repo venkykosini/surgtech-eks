@@ -1,0 +1,35 @@
+version: 0.2
+
+env:
+  shell: bash
+
+phases:
+  install:
+    runtime-versions:
+      docker: 20
+    commands:
+      - yum install -y gettext
+      - curl -sSL -o kubectl https://dl.k8s.io/release/v1.30.0/bin/linux/amd64/kubectl
+      - chmod +x kubectl
+      - mv kubectl /usr/local/bin/kubectl
+  pre_build:
+    commands:
+      - aws ecr get-login-password --region "$AWS_DEFAULT_REGION" | docker login --username AWS --password-stdin "$AWS_ACCOUNT_ID.dkr.ecr.$AWS_DEFAULT_REGION.amazonaws.com"
+      - export IMAGE_TAG=${CODEBUILD_RESOLVED_SOURCE_VERSION:0:7}
+      - export FRONTEND_IMAGE="$FRONTEND_REPOSITORY_URI:$IMAGE_TAG"
+      - export BACKEND_IMAGE="$BACKEND_REPOSITORY_URI:$IMAGE_TAG"
+      - aws eks update-kubeconfig --name "$EKS_CLUSTER_NAME" --region "$AWS_DEFAULT_REGION"
+  build:
+    commands:
+      - docker build -t "$FRONTEND_IMAGE" ./frontend
+      - docker build -t "$BACKEND_IMAGE" ./backend
+      - docker push "$FRONTEND_IMAGE"
+      - docker push "$BACKEND_IMAGE"
+  post_build:
+    commands:
+      - chmod +x cicd/render-and-deploy.sh
+      - ./cicd/render-and-deploy.sh
+
+artifacts:
+  files:
+    - '**/*'

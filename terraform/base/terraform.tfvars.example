@@ -1,0 +1,14 @@
+aws_region = "ap-south-1"
+project_name = "surgtech-eks"
+environment = "dev"
+
+cluster_version = "1.30"
+node_instance_types = ["t3.small"]
+node_capacity_type = "SPOT"
+desired_size = 1
+min_size = 1
+max_size = 2
+
+tags = {
+  Owner = "venky"
+}

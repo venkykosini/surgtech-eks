@@ -1,0 +1,10 @@
+.git
+.terraform
+node_modules
+terraform.tfstate
+terraform.tfstate.backup
+terraform/.terraform
+terraform/tfplan
+terraform/terraform.tfstate
+terraform/.terraform.tfstate.lock.info
+rendered

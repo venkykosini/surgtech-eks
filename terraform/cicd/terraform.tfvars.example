@@ -1,0 +1,8 @@
+aws_region = "ap-south-1"
+github_owner = "venkykosini"
+github_repo = "surgtech-eks"
+github_branch = "main"
+codestar_connection_arn = "arn:aws:codeconnections:ap-south-1:123456789012:connection/replace-me"
+
+# Leave this as-is unless you move the base stack state file.
+base_state_path = "../base/terraform.tfstate"
